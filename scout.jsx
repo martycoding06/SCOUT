@@ -690,7 +690,7 @@ function PlayersView({ profiles, onOpen }) {
   const [nation, setNation] = useState("");
   const [pos, setPos] = useState("");
 
-  const clubOptions = league ? CLUB_NAMES.filter((c) => CLUBS[c].league === league) : CLUB_NAMES;
+  const clubOptions = league ? CLUB_NAMES.filter((c) => CLUBS[c].league === league) : CLUB_NAMES; const leagueOptions = [...new Set(profiles.map((p) => p.league))].sort();
 
   const { list, fuzzy } = useMemo(() => {
     let base = profiles.filter((p) =>
@@ -723,7 +723,7 @@ function PlayersView({ profiles, onOpen }) {
         </div>
         <select value={league} onChange={(e) => { setLeague(e.target.value); setClub(""); }} aria-label="Filter by league">
           <option value="">All leagues</option>
-          {LEAGUES.map((l) => <option key={l}>{l}</option>)}
+          {leagueOptions.map((l) => <option key={l}>{l}</option>)}
         </select>
         <select value={club} onChange={(e) => setClub(e.target.value)} aria-label="Filter by club">
           <option value="">All clubs</option>
@@ -1015,7 +1015,7 @@ function LeaderboardView({ profiles, onOpen }) {
   const [league, setLeague] = useState("");
   const [pos, setPos] = useState("");
   const def = LB_STATS.find((s) => s.k === stat);
-  const MIN_MINS_FOR_RATE = 450; // ~5 full games — keeps tiny-sample rates off the board
+  const MIN_MINS_FOR_RATE = 450; const leagueOptions = [...new Set(profiles.map((p) => p.league))].sort();
   const rows = useMemo(() => {
     let pool = profiles.filter((p) =>
       (!league || p.league === league) &&
@@ -1037,7 +1037,7 @@ function LeaderboardView({ profiles, onOpen }) {
         </select>
         <select value={league} onChange={(e) => setLeague(e.target.value)} aria-label="Filter league">
           <option value="">All leagues</option>
-          {LEAGUES.map((l) => <option key={l}>{l}</option>)}
+          {leagueOptions.map((l) => <option key={l}>{l}</option>)}
         </select>
         {!def.gk && (
           <select value={pos} onChange={(e) => setPos(e.target.value)} aria-label="Filter position">
@@ -1307,46 +1307,9 @@ function MatchDetail({ mid, onBack, legs, addMatchLeg, addLeg, onOpenPlayer }) {
   );
 }
 
-/* ---------------------------- table --------------------------- */
-function TableView({ onOpenClubPlayer }) {
-  const [league, setLeague] = useState(LEAGUES[0]);
-  const rows = TABLE[league];
-  return (
-    <div>
-      <div className="controls" style={{ marginBottom: 8 }}>
-        <select value={league} onChange={(e) => setLeague(e.target.value)} aria-label="League table">
-          {LEAGUES.map((l) => <option key={l}>{l}</option>)}
-        </select>
-        <span className="demochip">Power table — derived from real player data, not the official standings</span>
-      </div>
-      <div className="panel">
-        <div className="ptitle">{league} — minutes-weighted team points per match</div>
-        <div style={{ overflowX: "auto" }}>
-          <table>
-            <thead><tr><th>#</th><th>Club</th><th>Pts / match</th><th>Squad goals</th><th>Avg rating</th><th>Players</th></tr></thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.club}>
-                  <td className="tbl-pos">{String(i + 1).padStart(2, "0")}</td>
-                  <td style={{ fontWeight: 500 }}>{r.club}</td>
-                  <td className="num oddsv">{r.ppm.toFixed(2)}</td>
-                  <td className="num">{r.goals}</td>
-                  <td className="num">{r.rating.toFixed(2)}</td>
-                  <td className="num" style={{ color: "var(--muted)" }}>{r.squad}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="section-note" style={{ marginTop: 10, marginBottom: 0 }}>
-          Ranked by each squad's real FotMob team points-per-match, weighted by every player's real minutes. Squad goals and appearances are real season totals; this ordering is a derived power ranking, not the league's official table.
-        </div>
-      </div>
-    </div>
-  );
-}
 
-/* --------------------------- parlay --------------------------- */
+
+function TableView({ clubs }) { const leagues = [...new Set(clubs.map((c) => c.league))].sort(); const [league, setLeague] = useState(leagues[0] || ""); const rows = clubs.filter((c) => c.league === league).slice().sort((a, b) => (a.standings?.position ?? 99) - (b.standings?.position ?? 99)); return ( <div> <div className="controls" style={{ marginBottom: 8 }}> <select value={league} onChange={(e) => setLeague(e.target.value)} aria-label="League table"> {leagues.map((l) => <option key={l}>{l}</option>)} </select> <span className="demochip" style={{ color: "var(--green)", borderColor: "var(--green)" }}>Official standings — synced live from FotMob</span> </div> <div className="panel"> <div className="ptitle">{league} — table</div> <div style={{ overflowX: "auto" }}> <table> <thead><tr><th>#</th><th>Club</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead> <tbody> {rows.map((r) => ( <tr key={r.id}> <td className="tbl-pos">{String(r.standings?.position ?? "-").padStart(2, "0")}</td> <td style={{ fontWeight: 500 }}>{r.name}</td> <td className="num">{r.standings?.played}</td> <td className="num">{r.standings?.wins}</td> <td className="num">{r.standings?.draws}</td> <td className="num">{r.standings?.losses}</td> <td className="num">{r.standings?.goalsFor}</td> <td className="num">{r.standings?.goalsAgainst}</td> <td className="num">{(r.standings?.goalsFor ?? 0) - (r.standings?.goalsAgainst ?? 0)}</td> <td className="num oddsv">{r.standings?.points}</td> </tr> ))} </tbody> </table> </div> <div className="section-note" style={{ marginTop: 10, marginBottom: 0 }}> Real league standings, synced directly from FotMob — official positions, not a projection. </div> </div> </div> ); } function FixturesView({ fixtures }) { const leagues = [...new Set(fixtures.map((f) => f.league))].sort(); const [league, setLeague] = useState(""); const shown = fixtures.filter((f) => !league || f.league === league).slice(0, 200); const fmt = (iso) => { const d = new Date(iso); return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }; return ( <div> <div className="controls" style={{ marginBottom: 8 }}> <select value={league} onChange={(e) => setLeague(e.target.value)} aria-label="Filter fixtures by league"> <option value="">All competitions</option> {leagues.map((l) => <option key={l}>{l}</option>)} </select> <span className="demochip" style={{ color: "var(--green)", borderColor: "var(--green)" }}>Real upcoming fixtures — synced live from FotMob, includes friendlies</span> </div> {shown.length === 0 ? ( <div className="empty">No upcoming fixtures synced yet. Check back after the next sync.</div> ) : ( <div className="panel"> {shown.map((f) => ( <div key={f.id} className="lb-row" style={{ cursor: "default" }}> <span className="lb-club" style={{ width: 170, flexShrink: 0 }}>{f.league}</span> <span className="lb-name" style={{ width: "auto", flex: 1 }}>{f.home} v {f.away}</span> <span className="mko" style={{ width: "auto", flexShrink: 0 }}>{fmt(f.date)}</span> </div> ))} </div> )} </div> ); } /* --------------------------- parlay --------------------------- */
 /* exact-hit-count distribution for independent legs with different
    probabilities: dp[j] = P(exactly j of the legs land). Built once
    per legs array via simple convolution (add one leg at a time). */
@@ -1565,7 +1528,7 @@ const profiles = PROFILES;
 
   const TABS = [
     { k: "matches", label: "Matches" },
-    { k: "table", label: "Table" },
+    { k: "table", label: "Table" }, { k: "fixtures", label: "Fixtures" },
     { k: "players", label: "Players" },
     { k: "leaderboards", label: "Leaderboards" },
     { k: "compare", label: "Compare", cnt: comparing.length || null },
@@ -1592,7 +1555,7 @@ const profiles = PROFILES;
     synced {getTimeAgo(lastSync)}
   </span>
 )}
-              <span className="sync"><span className="dot" />{`${PROFILES.length} players · ${CLUB_NAMES.length} clubs · ${LEAGUES.length} leagues`}</span>
+              <span className="sync"><span className="dot" />{`${PROFILES.length} players · ${clubs.length} clubs · ${new Set(clubs.map((c) => c.league)).size} leagues`}</span>
             </div>
           </div>
           <nav className="tabs">
@@ -1611,7 +1574,7 @@ const profiles = PROFILES;
           ? <MatchDetail mid={openMatchId} onBack={() => setOpenMatchId(null)} legs={legs}
               addMatchLeg={addMatchLeg} addLeg={addLeg} onOpenPlayer={openPlayer} />
           : <div style={{ paddingTop: 16 }}><MatchesView legs={legs} addMatchLeg={addMatchLeg} onOpenMatch={openMatch} /></div>)}
-        {tab === "table" && <div style={{ paddingTop: 16 }}><TableView /></div>}
+        {tab === "table" && <div style={{ paddingTop: 16 }}><TableView clubs={clubs} /></div>} {tab === "fixtures" && <div style={{ paddingTop: 16 }}><FixturesView fixtures={fixtures} /></div>}
         {tab === "players" && (openId
           ? <DetailView profiles={profiles} id={openId} onBack={() => setOpenId(null)} watch={watch} toggleWatch={toggleWatch}
               addLeg={addLeg} legs={legs} addCompare={addCompare} comparing={comparing} />
