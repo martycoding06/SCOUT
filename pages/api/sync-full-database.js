@@ -1,8 +1,9 @@
 import { chromium } from 'playwright';
 import Anthropic from '@anthropic-ai/sdk';
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 
 const client = new Anthropic();
+const redis = new Redis(process.env.REDIS_URL);
 
 export const config = { maxDuration: 120 };
 
@@ -86,7 +87,7 @@ Return:
                                                                                                                                                                                                                                                             
                                                                                                                                                                                                                                                             const parsed = JSON.parse(response.content[0].text);
                                                                                                                                                                                                                                                             
-                                                                                                                                                                                                                                                            const existing = await kv.get('scout:database');
+                                                                                                                                                                                                                                                            const existing = await redis.get('scout:database');
                                                                                                                                                                                                                                                             const existingData = existing ? JSON.parse(existing) : { clubs: [], players: [], fixtures: [] };
                                                                                                                                                                                                                                                             
                                                                                                                                                                                                                                                             const merged = {
@@ -98,7 +99,7 @@ Return:
                                                                                                                                                                                                                                                             dataSource: 'FotMob'
                                                                                                                                                                                                                                                             };
                                                                                                                                                                                                                                                             
-                                                                                                                                                                                                                                                            await kv.set('scout:database', JSON.stringify(merged), { ex: 86400 });
+                                                                                                              await redis.set('scout:database', JSON.stringify(merged), 'EX', 86400);
                                                                                                                                                                                                                                                             
                                                                                                                                                                                                                                                             console.log(`[full-database] Synced: ${merged.players?.length} players, ${merged.clubs?.length} clubs`);
                                                                                                                                                                                                                                                             
