@@ -222,12 +222,15 @@ export default function App() {
 if (isLoading) {
   return <div style={{ padding: '20px', textAlign: 'center' }}>Loading FotMob data...</div>;
 }
-const PROFILES = rawPlayers.map(p => ({
-  ...p,
-  scoutScore: calculateScoutScore(p),
-  role: inferRole(p.position),
-  id: p.id || generateId(p)
-}));
+const PROFILES = rawPlayers.map(p => {
+      const withAgg = p.R ? buildProfile(p) : p;
+      return {
+              ...withAgg,
+              scoutScore: calculateScoutScore(withAgg),
+              role: inferRole(withAgg.pos || withAgg.position),
+              id: withAgg.id || generateId(withAgg)
+      };
+});
   const NATIONS = [...new Set(PROFILES.map((p) => p.nation))].sort();
 
 /* positional averages (per 90) across the dataset — real fields only */
@@ -1655,12 +1658,13 @@ function inferRole(position) {
 }
 
 function calculateScoutScore(player) {
-  const apps = Math.max(player.appearances || 0, 1);
-  const appRate = Math.min(apps / 38, 1);
-  const goals = player.goals || 0;
-  const assists = player.assists || 0;
-  const contrib = (goals + assists) / apps;
-  
-  const score = 4 + (appRate * 2) + (contrib * 3);
-  return parseFloat(Math.min(score, 10).toFixed(2));
+    const agg = player.agg;
+    const apps = Math.max((agg ? agg.gp : player.appearances) || 0, 1);
+    const appRate = Math.min(apps / 38, 1);
+    const goals = (agg ? agg.goals : player.goals) || 0;
+    const assists = (agg ? agg.ast : player.assists) || 0;
+    const contrib = (goals + assists) / apps;
+
+    const score = 4 + (appRate * 2) + (contrib * 3);
+    return parseFloat(Math.min(score, 10).toFixed(2));
 }
