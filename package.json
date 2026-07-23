@@ -1,0 +1,19 @@
+{
+  "name": "scout",
+  "version": "1.0.0",
+  "description": "Football analytics and sports betting research",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.10.0",
+    "@vercel/kv": "^0.2.0"
+  },
+  "devDependencies": {
+    "next": "^14.0.0"
+  }
+}
