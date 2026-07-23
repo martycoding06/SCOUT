@@ -1,109 +1,52 @@
-import { chromium } from 'playwright';
-import Anthropic from '@anthropic-ai/sdk';
 import Redis from 'ioredis';
 
-const client = new Anthropic();
 const redis = new Redis(process.env.REDIS_URL);
 
 export const config = { maxDuration: 30 };
 
-export default async function handler(req, res) {
-if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
-return res.status(401).json({ error: 'Unauthorized' });
+const LEAGUE_IDS = new Set([47, 87, 54, 55, 53]);
+const FETCH_HEADERS = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36' };
+
+function todayStr() {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
 }
+
+export default async function handler(req, res) {
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
 try {
-const lastCheck = await redis.get('scout:last-match-check');
-const now = new Date();
+  console.log('[live-matches] Starting sync...');
 
-const dayOfWeek = now.getUTCDay();
-const hour = now.getUTCHours();
+  const r = await fetch(`https://www.fotmob.com/api/data/matches?date=${todayStr()}`, { headers: FETCH_HEADERS });
+  if (!r.ok) throw new Error(`FotMob matches request failed: ${r.status}`);
+  const data = await r.json();
 
-if (dayOfWeek === 1 && hour < 17) {
-return res.status(200).json({ status: 'skipped', reason: 'not-a-match-day' });
+  const matches = (data.leagues || [])
+  .filter((lg) => LEAGUE_IDS.has(lg.primaryId != null ? lg.primaryId : lg.id))
+  .flatMap((lg) => (lg.matches || []).map((m) => ({
+    id: `${m.home.name}_${m.away.name}`.replace(/\s+/g, '_'),
+    homeTeam: m.home.name,
+    awayTeam: m.away.name,
+    homeScore: m.home.score,
+    awayScore: m.away.score,
+    status: m.status?.finished ? 'finished' : (m.status?.started ? 'live' : 'upcoming'),
+    matchTime: (m.status?.reason?.short) || m.time,
+    league: lg.name,
+  })));
+
+  const payload = { timestamp: new Date().toISOString(), matches };
+  await redis.set('scout:live-matches', JSON.stringify(payload), 'EX', 300);
+  await redis.set('scout:last-match-check', String(Date.now()));
+
+  return res.status(200).json({ success: true, matchCount: matches.length, timestamp: payload.timestamp });
+} catch (error) {
+  console.error('[live-matches] Error:', error.message);
+  return res.status(500).json({ error: error.message });
 }
-
-console.log('[live-matches] Starting sync...');
-
-let browser;
-browser = await chromium.launch({ headless: true });
-const page = await browser.newPage();
-await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-
-await page.goto('https://www.fotmob.com/matches', {
-waitUntil: 'networkidle',
-timeout: 20000
-});
-
-await page.waitForSelector('[class*="Match"], [class*="match"]', { timeout: 10000 });
-
-const rawMatches = await page.evaluate(() => {
-const matches = [];
-
-document.querySelectorAll('[class*="MatchCard"], [class*="match-card"]').forEach(el => {
-matches.push({
-homeTeam: el.querySelector('[class*="home"]')?.textContent?.trim() || '',
-awayTeam: el.querySelector('[class*="away"]')?.textContent?.trim() || '',
-homeScore: el.querySelector('[class*="homeScore"]')?.textContent?.trim() || '',
-awayScore: el.querySelector('[class*="awayScore"]')?.textContent?.trim() || '',
-matchTime: el.querySelector('[class*="time"], [class*="status"]')?.textContent?.trim() || '',
-league: el.querySelector('[class*="league"]')?.textContent?.trim() || '',
-status: el.textContent.includes('Live') ? 'live' : el.textContent.includes('FT') ? 'finished' : 'upcoming',
-link: el.querySelector('a')?.href || ''
-});
-});
-
-return {
-timestamp: new Date().toISOString(),
-matches,
-html: document.documentElement.outerHTML.substring(0, 50000)
-};
-});
-
-await browser.close();
-
-const response = await client.messages.create({
-model: "claude-sonnet-4-6",
-max_tokens: 2000,
-messages: [{
-role: "user",
-content: `Parse these live FotMob matches and return ONLY valid JSON:
-
-${JSON.stringify(rawMatches, null, 2)}
-
-Return:
-{
-  "timestamp": "ISO",
-    "matches": [
-        {
-              "id": "HomeTeam_AwayTeam",
-                    "homeTeam": "name",
-                          "awayTeam": "name",
-                                "homeScore": number,
-                                      "awayScore": number,
-                                            "status": "live|finished|upcoming",
-                                                  "matchTime": "90+3",
-                                                        "league": "Premier League"
-                                                            }
-                                                              ]
-                                                              }`
-                                                              }]
-                                                              });
-
-                                                              const parsed = JSON.parse(response.content[0].text);
-
-          await redis.set('scout:live-matches', JSON.stringify(parsed), 'EX', 300);
-            await redis.set('scout:last-match-check', String(Date.now()));
-
-                                                              return res.status(200).json({
-                                                              success: true,
-                                                              matchCount: parsed.matches?.length || 0,
-                                                              timestamp: parsed.timestamp
-                                                              });
-
-                                                              } catch (error) {
-                                                              console.error('[live-matches] Error:', error.message);
-                                                              return res.status(500).json({ error: error.message });
-                                                              }
-                                                              }
-                                                              
+}
