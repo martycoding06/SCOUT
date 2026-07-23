@@ -11,7 +11,9 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.10.0",
-    "@vercel/kv": "^0.2.0"
+    "@vercel/kv": "^0.2.0",
+    "playwright": "^1.48.0",
+    "@anthropic-ai/sdk": "^0.32.0"
   },
   "devDependencies": {
     "next": "^14.0.0"
