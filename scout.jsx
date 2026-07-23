@@ -207,7 +207,27 @@ function buildProfile(player) {
   return { ...player, real: true, agg, p90 };
 }
 
-const { players: rawPlayers, clubs, fixtures, lastSync, isLoading } = useSubAgentSync();
+export default function App() {
+  const { players: rawPlayers, clubs, fixtures, lastSync, isLoading } = useSubAgentSync();
+  const [tab, setTab] = useState("matches");
+  const [openId, setOpenId] = useState(null);
+  const [openMatchId, setOpenMatchId] = useState(null);
+  const [watch, setWatch] = useState(() => new Set());
+  const [legs, setLegs] = useState([]);
+  const [comparing, setComparing] = useState([]);
+
+  /* every profile is real 2025/26 data — persist watchlist only */
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await window.storage.get("scout_watch_v1");
+        if (res && res.value) setWatch(new Set(JSON.parse(res.value)));
+      } catch (e) { /* nothing stored yet */ }
+    })();
+  }, []);
+  useEffect(() => {
+    (async () => { try { await window.storage.set("scout_watch_v1", JSON.stringify([...watch])); } catch (e) {} })();
+  }, [watch]);
 if (isLoading) {
   return <div style={{ padding: '20px', textAlign: 'center' }}>Loading FotMob data...</div>;
 }
@@ -1525,28 +1545,7 @@ function AboutView() {
 /* ============================================================
    App
    ============================================================ */
-export default function App() {
-  const [tab, setTab] = useState("matches");
-  const [openId, setOpenId] = useState(null);
-  const [openMatchId, setOpenMatchId] = useState(null);
-  const [watch, setWatch] = useState(() => new Set());
-  const [legs, setLegs] = useState([]);
-  const [comparing, setComparing] = useState([]);
-
-  /* every profile is real 2025/26 data — persist watchlist only */
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await window.storage.get("scout_watch_v1");
-        if (res && res.value) setWatch(new Set(JSON.parse(res.value)));
-      } catch (e) { /* nothing stored yet */ }
-    })();
-  }, []);
-  useEffect(() => {
-    (async () => { try { await window.storage.set("scout_watch_v1", JSON.stringify([...watch])); } catch (e) {} })();
-  }, [watch]);
-
-  const profiles = PROFILES;
+const profiles = PROFILES;
 
   const openPlayer = (id) => {
     if (typeof id === "string" && id.startsWith("m")) {
