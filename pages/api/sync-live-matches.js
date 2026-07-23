@@ -1,8 +1,9 @@
 import { chromium } from 'playwright';
 import Anthropic from '@anthropic-ai/sdk';
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 
 const client = new Anthropic();
+const redis = new Redis(process.env.REDIS_URL);
 
 export const config = { maxDuration: 30 };
 
@@ -12,7 +13,7 @@ return res.status(401).json({ error: 'Unauthorized' });
 }
 
 try {
-const lastCheck = await kv.get('scout:last-match-check');
+const lastCheck = await redis.get('scout:last-match-check');
 const now = new Date();
 
 const dayOfWeek = now.getUTCDay();
@@ -91,8 +92,8 @@ Return:
 
                                                               const parsed = JSON.parse(response.content[0].text);
 
-                                                              await kv.set('scout:live-matches', JSON.stringify(parsed), { ex: 300 });
-                                                              await kv.set('scout:last-match-check', Date.now());
+          await redis.set('scout:live-matches', JSON.stringify(parsed), 'EX', 300);
+            await redis.set('scout:last-match-check', String(Date.now()));
 
                                                               return res.status(200).json({
                                                               success: true,
