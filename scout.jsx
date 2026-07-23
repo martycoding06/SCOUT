@@ -148,15 +148,6 @@ const CLUB_NAMES = Object.keys(CLUBS).sort();
 const ROLE_POS = { gk: "GK", cb: "DF", fb: "DF", dm: "MF", cm: "MF", am: "MF", w: "FW", st: "FW" };
 const ROLE_NAME = { gk: "Goalkeeper", cb: "Centre-back", fb: "Full-back", dm: "Defensive mid", cm: "Central mid", am: "Attacking mid", w: "Winger", st: "Striker" };
 
-/* build player objects from REAL rows; carry the raw real row as R */
-const PLAYERS = REAL.map((R, i) => ({
-  id: i + 1,
-  name: R.n, club: R.c, nation: R.nat, role: R.role, age: R.a,
-  rating: R.r, pos: ROLE_POS[R.role], league: R.lg,
-  R,
-}));
-
-const NATIONS = [...new Set(PLAYERS.map((p) => p.nation))].sort();
 const POSITIONS = ["FW", "MF", "DF", "GK"];
 const POS_LABEL = { FW: "Forward", MF: "Midfielder", DF: "Defender", GK: "Goalkeeper" };
 
@@ -237,6 +228,7 @@ const PROFILES = rawPlayers.map(p => ({
   role: inferRole(p.position),
   id: p.id || generateId(p)
 }));
+  const NATIONS = [...new Set(PROFILES.map((p) => p.nation))].sort();
 
 /* positional averages (per 90) across the dataset — real fields only */
 const POS_AVG = {};
